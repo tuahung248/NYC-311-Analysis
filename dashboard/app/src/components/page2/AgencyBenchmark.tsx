@@ -45,8 +45,10 @@ export default function AgencyBenchmark() {
   }, [baselineMode, category]);
 
   const slowest = useMemo(() => {
-    if (rows.length === 0) return null;
-    return [...rows].sort(
+    const reliable = rows.filter((r) => !r.is_low_sample);
+    const pool = reliable.length > 0 ? reliable : rows;
+    if (pool.length === 0) return null;
+    return [...pool].sort(
       (a, b) => b.median_resolution_minutes - a.median_resolution_minutes,
     )[0];
   }, [rows]);

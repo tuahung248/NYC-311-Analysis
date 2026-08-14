@@ -1,7 +1,26 @@
 import { useMemo } from "react";
 import type { EquityHeatmapRow, IncomeQuartile } from "@/types/dashboard";
-import { fmtCount, fmtMinutes, fmtSignedPct } from "@/lib/format";
+import { fmtCount, fmtSignedPctOrMultiple } from "@/lib/format";
 import type { AnchorMode } from "./EquityLens";
+
+type FixedUnit = "min" | "h" | "d";
+
+// fmtMinutes auto-picks a unit per value (min/h/d), which is fine for a
+// single stat but makes a grid of cells hard to compare at a glance when
+// neighbouring cells land in different units. Pick one unit for the whole
+// table based on its largest value, and format every cell in it.
+function pickFixedUnit(maxMinutes: number): FixedUnit {
+  if (maxMinutes >= 60 * 24) return "d";
+  if (maxMinutes >= 60) return "h";
+  return "min";
+}
+
+function fmtFixedUnit(minutes: number | null, unit: FixedUnit): string {
+  if (minutes === null || Number.isNaN(minutes)) return "—";
+  if (unit === "d") return `${(minutes / (60 * 24)).toFixed(1)} d`;
+  if (unit === "h") return `${(minutes / 60).toFixed(1)} h`;
+  return `${Math.round(minutes)} min`;
+}
 
 interface Props {
   rows: EquityHeatmapRow[];
@@ -83,6 +102,13 @@ export default function EquityHeatmap({ rows, allRows, metric, anchorMode }: Pro
     return { matrix: m, range: [lo, hi] as [number, number] };
   }, [rows, metric, gapField]);
 
+  const timeUnit = useMemo(() => {
+    const all = rows
+      .map((r) => r.median_resolution_minutes)
+      .filter((v): v is number => v !== null && Number.isFinite(v));
+    return pickFixedUnit(all.length ? Math.max(...all) : 0);
+  }, [rows]);
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[480px] border-separate border-spacing-1 text-sm">
@@ -118,10 +144,10 @@ export default function EquityHeatmap({ rows, allRows, metric, anchorMode }: Pro
                     <span>{borough}</span>
                     {isNonMonotonic && (
                       <span
-                        className="inline-flex items-center rounded-sm border border-state-watch/50 bg-[#FCEBC9] px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#7a5400]"
+                        className="inline-flex h-3.5 w-3.5 shrink-0 cursor-help items-center justify-center rounded-full border border-state-watch/60 text-[9px] font-semibold text-[#7a5400]"
                         title="Non-monotonic income gradient — Q1 to Q4 medians do not strictly improve. May reflect a single-ZIP quartile bucket. See docs/equity_quartile_audit.md."
                       >
-                        non-monotonic
+                        i
                       </span>
                     )}
                   </div>
@@ -162,8 +188,8 @@ export default function EquityHeatmap({ rows, allRows, metric, anchorMode }: Pro
                   const textColor = isLow ? "var(--neutral-muted)" : "#ffffff";
                   const anchorTooltip =
                     anchorMode === "q4"
-                      ? `Vs Q4 (within borough): ${fmtSignedPct(row.gap_vs_q4_pct)}`
-                      : `Vs city median: ${fmtSignedPct(row.gap_vs_city_pct)}`;
+                      ? `Vs Q4 (within borough): ${fmtSignedPctOrMultiple(row.gap_vs_q4_pct)}`
+                      : `Vs city median: ${fmtSignedPctOrMultiple(row.gap_vs_city_pct)}`;
                   return (
                     <td
                       key={q}
@@ -172,7 +198,7 @@ export default function EquityHeatmap({ rows, allRows, metric, anchorMode }: Pro
                         background: bg,
                         color: textColor,
                       }}
-                      title={`${borough} · ${QUARTILE_LABELS[q]}\nMedian: ${fmtMinutes(row.median_resolution_minutes)}\nClosed: ${fmtCount(row.closed_request_count)}\n${anchorTooltip}\n${row.confidence_label}${row.suppression_reason ? `\nNote: ${row.suppression_reason}` : ""}${isNonMonotonic ? "\n\nNon-monotonic gradient flag — Q1->Q4 not strictly improving." : ""}`}
+                      title={`${borough} · ${QUARTILE_LABELS[q]}\nMedian: ${fmtFixedUnit(row.median_resolution_minutes, timeUnit)}\nClosed: ${fmtCount(row.closed_request_count)}\n${anchorTooltip}\n${row.confidence_label}${row.suppression_reason ? `\nNote: ${row.suppression_reason}` : ""}${isNonMonotonic ? "\n\nNon-monotonic gradient flag — Q1->Q4 not strictly improving." : ""}`}
                     >
                       {isLow ? (
                         <div className="text-center text-[11px]">
@@ -185,8 +211,8 @@ export default function EquityHeatmap({ rows, allRows, metric, anchorMode }: Pro
                         <div className="text-center leading-tight">
                           <div className="text-[13px] font-bold">
                             {metric === "median"
-                              ? fmtMinutes(row.median_resolution_minutes)
-                              : fmtSignedPct(row[gapField])}
+                              ? fmtFixedUnit(row.median_resolution_minutes, timeUnit)
+                              : fmtSignedPctOrMultiple(row[gapField])}
                           </div>
                           <div className="text-[10px] opacity-90">
                             n={fmtCount(row.closed_request_count)}
@@ -215,8 +241,8 @@ export default function EquityHeatmap({ rows, allRows, metric, anchorMode }: Pro
           confidence (n &lt; threshold)
         </span>
         <span className="inline-flex items-center gap-1">
-          <span className="inline-flex items-center rounded-sm border border-state-watch/50 bg-[#FCEBC9] px-1 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#7a5400]">
-            non-monotonic
+          <span className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full border border-state-watch/60 text-[9px] font-semibold text-[#7a5400]">
+            i
           </span>
           Q1-&gt;Q4 gradient does not strictly improve
         </span>

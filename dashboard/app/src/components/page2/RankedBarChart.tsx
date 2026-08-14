@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -31,12 +31,18 @@ function isDohmh(agency: string): boolean {
   return agency.toUpperCase().startsWith("DOHMH");
 }
 
+const DEFAULT_VISIBLE = 15;
+
 export default function RankedBarChart({ rows, baselineLabel, baselineValue }: Props) {
+  const [expanded, setExpanded] = useState(false);
+
   const data = useMemo(() => {
     return [...rows]
+      // Slowest first — this is a "where's the problem" chart, so the row
+      // that most needs attention should be the first thing scanned.
       .sort(
         (a, b) =>
-          a.median_resolution_minutes - b.median_resolution_minutes,
+          b.median_resolution_minutes - a.median_resolution_minutes,
       )
       .map((row) => {
         const dohmh = isDohmh(row.agency);
@@ -87,6 +93,11 @@ export default function RankedBarChart({ rows, baselineLabel, baselineValue }: P
     [data, axisStats.axisMax],
   );
 
+  const visibleData =
+    expanded || displayData.length <= DEFAULT_VISIBLE
+      ? displayData
+      : displayData.slice(0, DEFAULT_VISIBLE);
+
   if (data.length === 0) {
     return (
       <div className="flex h-64 items-center justify-center rounded-md bg-ink-soft text-sm text-ink-muted">
@@ -95,7 +106,7 @@ export default function RankedBarChart({ rows, baselineLabel, baselineValue }: P
     );
   }
 
-  const chartHeight = Math.max(220, data.length * 28 + 40);
+  const chartHeight = Math.max(220, visibleData.length * 28 + 40);
 
   return (
     <div className="space-y-2">
@@ -114,7 +125,7 @@ export default function RankedBarChart({ rows, baselineLabel, baselineValue }: P
       <div style={{ height: chartHeight }} className="w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
-            data={displayData}
+            data={visibleData}
             layout="vertical"
             margin={{ top: 8, right: 24, bottom: 8, left: 60 }}
           >
@@ -177,7 +188,7 @@ export default function RankedBarChart({ rows, baselineLabel, baselineValue }: P
               }}
             />
             <Bar dataKey="display_minutes" isAnimationActive={false}>
-              {displayData.map((row) => (
+              {visibleData.map((row) => (
                 <Cell
                   key={row.agency + row.operational_category}
                   fill={
@@ -193,6 +204,17 @@ export default function RankedBarChart({ rows, baselineLabel, baselineValue }: P
           </BarChart>
         </ResponsiveContainer>
       </div>
+      {displayData.length > DEFAULT_VISIBLE && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="rounded-md border border-ink-grid px-3 py-1.5 text-xs font-medium text-ink hover:bg-ink-soft"
+        >
+          {expanded
+            ? `Show top ${DEFAULT_VISIBLE} slowest only`
+            : `Show all ${displayData.length} agencies`}
+        </button>
+      )}
       <Legend />
     </div>
   );

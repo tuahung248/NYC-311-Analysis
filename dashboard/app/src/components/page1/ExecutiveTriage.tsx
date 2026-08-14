@@ -72,6 +72,16 @@ export default function ExecutiveTriage() {
           subtitle="Critical / Watch / Stable, weighted from growth, backlog, delay, equity"
           className="lg:col-span-2"
           bodyClassName="p-0"
+          toolbar={
+            <span
+              className="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-ink-grid text-[10px] font-semibold text-ink-muted"
+              title={
+                "Priority score = 35% growth (z-score) + 30% backlog (z-score) + 20% delay (z-score) + 15% equity (z-score), each z-scored then percentile-ranked.\n\nCritical: >=90th percentile\nWatch: >=70th percentile\nStable: below 70th percentile\nInsufficient Data: latest_count < 100"
+              }
+            >
+              i
+            </span>
+          }
         >
           <PriorityPanel />
         </Card>

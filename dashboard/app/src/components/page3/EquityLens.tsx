@@ -7,7 +7,8 @@ import { useFilters } from "@/context/FilterContext";
 import {
   fmtCount,
   fmtMinutes,
-  fmtSignedPct,
+  fmtSignedPctOrMultiple,
+  isExtremePct,
   prettyCategory,
 } from "@/lib/format";
 import EquityHeatmap from "./EquityHeatmap";
@@ -184,7 +185,7 @@ export default function EquityLens() {
               className={`px-3 py-2 text-sm ${anchorMode === "q4" ? "bg-ink text-white" : "bg-white text-ink hover:bg-ink-soft"}`}
               title="Compare each cell to its borough's Q4 (highest-income) cell. Boroughs without a Q4 anchor of n>=100 fall out of the gap view."
             >
-              Q4 within borough
+              Highest-income areas (Q4)
             </button>
             <button
               type="button"
@@ -194,7 +195,7 @@ export default function EquityLens() {
               className={`px-3 py-2 text-sm ${anchorMode === "city" ? "bg-ink text-white" : "bg-white text-ink hover:bg-ink-soft"}`}
               title="Compare each cell to the citywide median for the same operational category. Use as a fallback when Q4 is missing."
             >
-              City median (fallback)
+              Citywide median (fallback)
             </button>
           </div>
         </div>
@@ -207,7 +208,13 @@ export default function EquityLens() {
           {equityZForChosen !== null && (
             <>
               {" "}
-              (equity_z = <strong>{equityZForChosen.toFixed(2)}</strong>)
+              (equity risk score{" "}
+              <strong
+                title="How far this category's income-based service gap sits from the citywide average, in standard deviations. Higher = more unequal."
+              >
+                {equityZForChosen.toFixed(2)}
+              </strong>
+              )
             </>
           )}
           . This default surfaces the largest equity signal first rather than
@@ -247,15 +254,39 @@ export default function EquityLens() {
           >
             {callouts.worst ? (
               <div className="space-y-2 text-sm">
+                {(() => {
+                  const thinAnchor =
+                    anchorMode === "q4" &&
+                    callouts.worst.q4_anchor_count !== null &&
+                    callouts.worst.closed_request_count >=
+                      callouts.worst.q4_anchor_count * 10;
+                  return (
+                    thinAnchor && (
+                      <div className="rounded-sm bg-[#FCEBC9] px-2 py-1 text-[11px] text-[#7a5400]">
+                        Thin anchor — the highest-income comparison group
+                        here is &gt;=10x smaller than the lowest-income
+                        group, so the gap below is sensitive to a handful of
+                        ZIPs. Switch to Citywide median anchor to cross-check.
+                      </div>
+                    )
+                  );
+                })()}
                 <div>
                   <span className="text-ink-muted">Borough:</span>{" "}
                   <strong>{callouts.worst.borough}</strong>
                 </div>
                 <div>
-                  Q1 lags {anchorMode === "q4" ? "Q4" : "city median"} by{" "}
+                  Lowest-income areas wait{" "}
                   <strong className="text-state-critical">
-                    {fmtSignedPct(callouts.worst[gapKey])}
-                  </strong>
+                    {fmtSignedPctOrMultiple(callouts.worst[gapKey])}
+                  </strong>{" "}
+                  longer than {anchorMode === "q4" ? "the highest-income areas" : "the city median"}
+                  {isExtremePct(callouts.worst[gapKey]) && (
+                    <span className="ml-1 text-[11px] text-ink-muted">
+                      (extreme — treat as a data-quality flag, not a precise
+                      estimate)
+                    </span>
+                  )}
                 </div>
                 <div>
                   Q1 median:{" "}
@@ -284,16 +315,6 @@ export default function EquityLens() {
                   {" · "}
                   {callouts.worst.confidence_label}
                 </div>
-                {anchorMode === "q4" &&
-                  callouts.worst.q4_anchor_count !== null &&
-                  callouts.worst.closed_request_count >=
-                    callouts.worst.q4_anchor_count * 10 && (
-                    <div className="rounded-sm bg-[#FCEBC9] px-2 py-1 text-[11px] text-[#7a5400]">
-                      Thin anchor — Q4 sample is &gt;= 10x smaller than Q1.
-                      The headline number is sensitive to a small high-income
-                      ZIP cluster. Switch to City median anchor to cross-check.
-                    </div>
-                  )}
               </div>
             ) : (
               <p className="text-sm text-ink-muted">
@@ -308,7 +329,7 @@ export default function EquityLens() {
               <div className="text-sm">
                 <strong>{callouts.best.borough}</strong> · Q1 vs{" "}
                 {anchorMode === "q4" ? "Q4" : "city median"} gap{" "}
-                <strong>{fmtSignedPct(callouts.best[gapKey])}</strong>
+                <strong>{fmtSignedPctOrMultiple(callouts.best[gapKey])}</strong>
               </div>
             ) : (
               <p className="text-sm text-ink-muted">No reliable Q1 cells.</p>
