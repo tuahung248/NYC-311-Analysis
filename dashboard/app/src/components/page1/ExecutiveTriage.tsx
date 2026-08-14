@@ -2,6 +2,7 @@ import KpiCard from "@/components/layout/KpiCard";
 import Card from "@/components/shared/Card";
 import FilterBar from "@/components/shared/FilterBar";
 import PageHeader from "@/components/shared/PageHeader";
+import { useFilters } from "@/context/FilterContext";
 import { kpiHeader } from "@/data";
 import { fmtCompact, fmtPct, fmtSignedPct, fmtHours } from "@/lib/format";
 import ParetoChart from "./ParetoChart";
@@ -11,6 +12,8 @@ import CalloutsRow from "./CalloutsRow";
 
 export default function ExecutiveTriage() {
   const kpi = kpiHeader;
+  const { category, borough } = useFilters();
+  const filterActive = category !== "(All)" || borough !== "(All)";
   const backlogTrend =
     kpi.backlog_growth_pct === null
       ? "flat"
@@ -29,6 +32,15 @@ export default function ExecutiveTriage() {
       />
 
       <FilterBar show={{ category: true, borough: true, topN: true }} />
+
+      {filterActive && (
+        <p className="rounded-md border border-ink-grid bg-ink-soft px-3 py-2 text-xs text-ink-muted">
+          Monthly trend is scoped to your selection. Priority signals list
+          filters by category (its score stays citywide — not borough-broken
+          out). KPI cards, Volume Pareto, and Callouts stay citywide — that
+          data isn&apos;t broken out by category/borough yet.
+        </p>
+      )}
 
       <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <KpiCard
