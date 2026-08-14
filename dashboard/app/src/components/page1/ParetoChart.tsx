@@ -21,11 +21,17 @@ export default function ParetoChart() {
   const data = useMemo(() => {
     return [...pareto]
       .sort((a, b) => b.request_count - a.request_count)
-      .map((row) => ({
-        ...row,
-        short: prettyCategory(row.operational_category),
-        bandColor: row.cumulative_pct <= 80 ? "var(--accent-blue)" : "var(--accent-orange)",
-      }));
+      .map((row) => {
+        const full = prettyCategory(row.operational_category);
+        return {
+          ...row,
+          short: full,
+          // Axis tick label only — long category names were overlapping at
+          // a -32deg angle. Full name is still shown in the tooltip.
+          axisLabel: full.length > 16 ? `${full.slice(0, 15)}…` : full,
+          bandColor: row.cumulative_pct <= 80 ? "var(--accent-blue)" : "var(--accent-orange)",
+        };
+      });
   }, []);
 
   const concentration = useMemo(() => {
@@ -42,11 +48,11 @@ export default function ParetoChart() {
         <strong>Top {topN} categories drive {concentration.toFixed(1)}%</strong>{" "}
         of total volume.
       </div>
-      <div className="h-[320px] w-full">
+      <div className="h-[340px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
             data={data}
-            margin={{ top: 16, right: 56, bottom: 80, left: 8 }}
+            margin={{ top: 16, right: 56, bottom: 92, left: 8 }}
             onClick={(e) => {
               const payload = (e?.activePayload ?? [])[0]?.payload as
                 | { operational_category?: string }
@@ -62,12 +68,12 @@ export default function ParetoChart() {
           >
             <CartesianGrid stroke="var(--neutral-grid)" strokeDasharray="3 3" vertical={false} />
             <XAxis
-              dataKey="short"
+              dataKey="axisLabel"
               interval={0}
               tick={{ fontSize: 11, fill: "var(--neutral-text)" }}
-              angle={-32}
+              angle={-40}
               textAnchor="end"
-              height={80}
+              height={92}
             />
             <YAxis
               yAxisId="left"

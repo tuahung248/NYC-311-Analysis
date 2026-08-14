@@ -2,6 +2,7 @@ import KpiCard from "@/components/layout/KpiCard";
 import Card from "@/components/shared/Card";
 import FilterBar from "@/components/shared/FilterBar";
 import PageHeader from "@/components/shared/PageHeader";
+import { useFilters } from "@/context/FilterContext";
 import { kpiHeader } from "@/data";
 import { fmtCompact, fmtPct, fmtSignedPct, fmtHours } from "@/lib/format";
 import ParetoChart from "./ParetoChart";
@@ -11,6 +12,8 @@ import CalloutsRow from "./CalloutsRow";
 
 export default function ExecutiveTriage() {
   const kpi = kpiHeader;
+  const { category, borough } = useFilters();
+  const filterActive = category !== "(All)" || borough !== "(All)";
   const backlogTrend =
     kpi.backlog_growth_pct === null
       ? "flat"
@@ -29,6 +32,15 @@ export default function ExecutiveTriage() {
       />
 
       <FilterBar show={{ category: true, borough: true, topN: true }} />
+
+      {filterActive && (
+        <p className="rounded-md border border-ink-grid bg-ink-soft px-3 py-2 text-xs text-ink-muted">
+          Monthly trend is scoped to your selection. Priority signals list
+          filters by category (its score stays citywide — not borough-broken
+          out). KPI cards, Volume Pareto, and Callouts stay citywide — that
+          data isn&apos;t broken out by category/borough yet.
+        </p>
+      )}
 
       <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <KpiCard
@@ -72,6 +84,16 @@ export default function ExecutiveTriage() {
           subtitle="Critical / Watch / Stable, weighted from growth, backlog, delay, equity"
           className="lg:col-span-2"
           bodyClassName="p-0"
+          toolbar={
+            <span
+              className="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-ink-grid text-[10px] font-semibold text-ink-muted"
+              title={
+                "Priority score = 35% growth (z-score) + 30% backlog (z-score) + 20% delay (z-score) + 15% equity (z-score), each z-scored then percentile-ranked.\n\nCritical: >=90th percentile\nWatch: >=70th percentile\nStable: below 70th percentile\nInsufficient Data: latest_count < 100"
+              }
+            >
+              i
+            </span>
+          }
         >
           <PriorityPanel />
         </Card>

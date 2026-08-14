@@ -76,11 +76,12 @@ function Sparkline({ series, color }: SparklineProps) {
 }
 
 export default function PriorityPanel() {
-  const { setCategory, category } = useFilters();
+  const { setCategory, category, borough } = useFilters();
 
   const trendByCategory = useMemo(() => {
     const totals = new Map<string, Map<string, number>>();
     for (const row of monthlyTrend) {
+      if (borough !== "(All)" && row.borough !== borough) continue;
       const cat = row.operational_category;
       const month = String(row.created_month).slice(0, 10);
       const inner = totals.get(cat) ?? new Map<string, number>();
@@ -97,18 +98,24 @@ export default function PriorityPanel() {
       );
     }
     return out;
-  }, []);
+  }, [borough]);
 
   const ranked = useMemo(() => {
-    return [...prioritySignals]
+    const scoped =
+      category === "(All)"
+        ? prioritySignals
+        : prioritySignals.filter(
+            (row) => row.operational_category === category,
+          );
+    return [...scoped]
       .sort((a, b) => {
         const sa = STATE_RANK[a.priority_state] ?? 9;
         const sb = STATE_RANK[b.priority_state] ?? 9;
         if (sa !== sb) return sa - sb;
         return (b.priority_score ?? -Infinity) - (a.priority_score ?? -Infinity);
       })
-      .slice(0, 8);
-  }, []);
+      .slice(0, category === "(All)" ? 8 : scoped.length);
+  }, [category]);
 
   return (
     <ul className="divide-y divide-ink-grid">
